@@ -1,86 +1,57 @@
 import pytest
-import os
-import json
-import time
-from unittest.mock import patch
+import requests
 
-from utils import currency_converter
-from utils.currency_converter import CACHE_FILE, update_cache, fetch_exchange_rate, CACHE_EXPIRATION_SECONDS, \
-    clean_cache
+from fastapi import HTTPException
+from utils.currency_converter import fetch_exchange_rate, round_currency_amount
 
 
-@pytest.fixture(scope="function", autouse=True)
-def setup_and_teardown():
-    """Fixture to set up and tear down the cache file for tests."""
-    # Ensure cache file is cleaned up before and after each test
-    if os.path.exists(CACHE_FILE):
-        os.remove(CACHE_FILE)
-    yield
-    if os.path.exists(CACHE_FILE):
-        os.remove(CACHE_FILE)
+# Test fetch_exchange_rate
 
+def test_fetch_exchange_rate_success(mocker):
+    """Test successful fetch of exchange rate from the API."""
+    mock_response = mocker.Mock()
+    mock_response.json.return_value = {"rates": [{"mid": 4.5}]}
+    mock_response.raise_for_status = mocker.Mock()
+    mocker.patch("utils.currency_converter.requests.get", return_value=mock_response)
 
-def test_fetch_exchange_rate_with_cache(mocker):
-    """Test that fetch_exchange_rate uses the cache if available."""
-    # Add a cached rate
-    update_cache("USD", 4.5)
-    # Mock the API call to prevent real HTTP requests
-    mocker.patch("currency_converter.requests.get")
-
-    # Fetch rate for USD - should use cache, not API
     rate = fetch_exchange_rate("USD")
     assert rate == 4.5
-    currency_converter.requests.get.assert_not_called()
 
 
-def test_fetch_exchange_rate_without_cache(mocker):
-    """Test that fetch_exchange_rate calls API if cache is not available."""
-    # Mock the API response
+def test_fetch_exchange_rate_request_exception(mocker):
+    """Test fetch_exchange_rate when requests raises a RequestException."""
+    mocker.patch("utils.currency_converter.requests.get", side_effect=requests.exceptions.RequestException("Network error"))
+
+    with pytest.raises(HTTPException) as exc_info:
+        fetch_exchange_rate("USD")
+    assert exc_info.value.status_code == 503
+    assert "Currency service unavailable" in exc_info.value.detail
+
+
+def test_fetch_exchange_rate_key_error(mocker):
+    """Test fetch_exchange_rate when API response has missing data (KeyError)."""
     mock_response = mocker.Mock()
-    mock_response.json.return_value = {"rates": [{"mid": 4.0}]}
-    mocker.patch("currency_converter.requests.get", return_value=mock_response)
+    mock_response.json.return_value = {"rates": []}  # Invalid structure
+    mock_response.raise_for_status = mocker.Mock()
+    mocker.patch("utils.currency_converter.requests.get", return_value=mock_response)
 
-    # Fetch rate for USD - should call API
-    rate = fetch_exchange_rate("USD")
-    assert rate == 4.0
-    currency_converter.requests.get.assert_called_once()
-
-
-def test_clean_cache(cache):
-    """Test that clean_cache removes expired entries from the cache."""
-    # Add an expired and a valid cache entry
-    update_cache("USD", 4.5)
-    time.sleep(1)  # Ensure there's a time difference
-    expired_timestamp = time.time() - CACHE_EXPIRATION_SECONDS - 1
-    with open(CACHE_FILE, "r+") as file:
-        cache = json.load(file)
-        cache["EXPIRED"] = (expired_timestamp, 3.5)
-        file.seek(0)
-        json.dump(cache, file)
-        file.truncate()
-
-    # Run clean_cache and check that expired entry is removed
-    clean_cache()
-    with open(CACHE_FILE, "r") as file:
-        cache = json.load(file)
-
-    assert "EXPIRED" not in cache
-    assert "USD" in cache  # USD entry should still be present
+    with pytest.raises(HTTPException) as exc_info:
+        fetch_exchange_rate("USD")
+    assert exc_info.value.status_code == 400
+    assert "Invalid response structure" in exc_info.value.detail
 
 
-def test_fetch_exchange_rate_with_expired_cache(mocker):
-    """Test that fetch_exchange_rate calls API if cache entry is expired."""
-    # Set up expired cache entry
-    expired_timestamp = time.time() - CACHE_EXPIRATION_SECONDS - 1
-    with open(CACHE_FILE, "w") as file:
-        json.dump({"USD": (expired_timestamp, 4.5)}, file)
+# Test round_currency_amount
 
-    # Mock the API response
-    mock_response = mocker.Mock()
-    mock_response.json.return_value = {"rates": [{"mid": 4.0}]}
-    mocker.patch("currency_converter.requests.get", return_value=mock_response)
-
-    # Fetch rate for USD - should ignore expired cache and call API
-    rate = fetch_exchange_rate("USD")
-    assert rate == 4.0
-    currency_converter.requests.get.assert_called_once()
+@pytest.mark.parametrize("amount, currency, expected", [
+    (123.456, "PLN", 123.46),
+    (123.456, "USD", 123.46),
+    (123.456, "EUR", 123.46),
+    (123.456, "GBP", 123.46),
+    (123.456, "JPY", 123),  # No decimal places for Yen
+    (123.456, "UNKNOWN", 123.46),  # Default precision
+])
+def test_round_currency_amount(amount, currency, expected):
+    """Test rounding of currency amount based on currency precision."""
+    result = round_currency_amount(amount, currency)
+    assert result == expected

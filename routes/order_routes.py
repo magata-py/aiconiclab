@@ -1,12 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from models.order import Order
-from schemas.order import OrderCreate, OrderUpdate, OrderResponse
+from schemas.order import OrderCreate, OrderUpdate, OrderResponse, VALID_STATUSES
 from utils.currency_converter import fetch_exchange_rate
 from utils.database import get_db
-
-# Define allowed status values for validation
-VALID_STATUSES = {"pending", "shipped", "delivered", "in-progress"}
 
 router = APIRouter()
 
@@ -88,6 +85,5 @@ def list_orders(
             raise HTTPException(status_code=400, detail="Invalid status provided")
         query = query.filter(Order.status == status)  # type: ignore
 
-    # Apply pagination using limit and offset
     orders = query.all()
     return orders

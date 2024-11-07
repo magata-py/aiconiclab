@@ -7,8 +7,7 @@ VALID_STATUSES = {"pending", "shipped", "delivered", "in-progress"}
 class OrderCreate(BaseModel):
     customer_name: str = Field(..., min_length=1, max_length=100, description="Full name of the customer")
     total_amount: condecimal(gt=0, decimal_places=2) = Field(..., description="Total amount of the order in PLN")
-    currency: Literal["PLN", "USD", "EUR", "GBP"] = Field(..., description="Currency for the order (PLN, USD,  EUR, "
-                                                                           "GBP)")
+    currency: Literal["PLN", "USD", "EUR", "GBP", "JPY"] = Field(..., description="Currency for the order (PLN, USD,  EUR, GBP, JPY)")
 
 
 class OrderUpdate(BaseModel):
