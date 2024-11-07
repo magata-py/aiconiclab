@@ -1,0 +1,52 @@
+Recruitment Task: Building an Order Management API
+
+Task Description:
+
+Your task is to build an API using FastAPI for managing orders for a small online shop. The application should support:
+
+Creating orders and saving them to a database.
+Updating the order status.
+Fetching currency exchange rates to convert the order amount into a chosen currency.
+Technical Requirements:
+
+Technologies:
+
+FastAPI - for handling REST endpoints.
+SQLAlchemy - as the ORM for communication with a SQLite database (or another preferred database).
+Pydantic - for data validation and serialization.
+External API for currency exchange rates, such as the NBP (National Bank of Poland) API or another publicly available API.
+Database:
+
+Use SQLite to store order information.
+The order model should include at least the following fields:
+id - unique order ID.
+customer_name - customer’s full name.
+total_amount - order amount (in PLN).
+currency - the target currency for conversion (e.g., "EUR", "USD").
+status - order status (e.g., "pending", "shipped", "delivered").
+API Endpoints:
+
+POST /orders/ - Create a new order. The user provides customer data and the amount in PLN.
+PUT /orders/{order_id}/ - Update the order status.
+GET /orders/{order_id}/ - Retrieve order details, including the converted amount in the chosen currency, using the latest exchange rates from an external API.
+GET /orders/ - List all orders (optional filtering by status).
+Integration with an External API:
+
+Integrate with an external currency exchange rate API, such as NBP’s API, to convert total_amount from PLN to the selected currency. Exchange rates should be fetched for each order request, with no caching.
+The candidate should specify the chosen API and ensure it functions as intended in the application.
+
+Additional Requirements:
+
+Code should be clean and follow PEP8 best practices.
+Each endpoint should return appropriate HTTP status codes and JSON responses.
+Include basic error handling, such as validation with Pydantic and error responses (e.g., 404 for non-existent resources).
+Assume API access is open (no authorization needed). If authorization is required, please document any necessary steps.
+Additional Questions for the Candidate (to be answered before starting):
+
+Are you familiar with the chosen currency exchange rate API, or do you need an example of the documentation?
+Would you like support in designing a database schema for additional currencies if needed?
+What tools do you plan to use to test and verify the endpoints?
+Additional Information:
+
+Time Estimate: The task is expected to take approximately 4 hours.
+Submission: Upon completion, please submit the source code (with a README for setup instructions) and a brief note explaining the chosen API and its usage in the application.
